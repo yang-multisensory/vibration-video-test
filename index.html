@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Video + Vibration</title>
+  <style>
+    /* === 这里粘贴你的 CSS === */
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: sans-serif;
+      background: #f9f9f9;
+      text-align: center;
+    }
+
+    video {
+      width: 100%;
+      max-width: 640px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+    }
+
+    button {
+      padding: 12px 24px;
+      font-size: 18px;
+      border: none;
+      border-radius: 8px;
+      background: #007bff;
+      color: white;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #0056b3;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- === 这里粘贴你的 HTML 视频 + 按钮 === -->
+  <video id="myVideo" preload="metadata" playsinline>
+    <source src="https://yang-multisensory.github.io/vibration-video-test/Chocolate%20Factory%20480.mp4" type="video/mp4">
+    Your browser does not support video.
+  </video>
+
+  <br>
+  <button id="playBtn">▶ 播放</button>
+
+  <script>
+    // === 这里粘贴你的 JS ===
+    const video = document.getElementById('myVideo');
+    const button = document.getElementById('playBtn');
+
+    let vibrationStarted = false;
+    let vibrationInterval = null;
+
+    button.addEventListener('click', () => {
+      if (video.paused) {
+        video.play();
+        button.textContent = '⏸ 暂停';
+      } else {
+        video.pause();
+        button.textContent = '▶ 播放';
+
+        if (navigator.vibrate && vibrationInterval) {
+          clearInterval(vibrationInterval);
+          navigator.vibrate(0);
+          vibrationInterval = null;
+          vibrationStarted = false;
+        }
+      }
+    });
+
+    video.addEventListener('timeupdate', () => {
+      if (!vibrationStarted && video.currentTime >= 34) {
+        vibrationStarted = true;
+
+        if (navigator.vibrate) {
+          navigator.vibrate(200);
+          vibrationInterval = setInterval(() => {
+            navigator.vibrate(200);
+          }, 500);
+        }
+      }
+    });
+
+    video.addEventListener('ended', () => {
+      if (vibrationInterval) {
+        clearInterval(vibrationInterval);
+        navigator.vibrate(0);
+        vibrationInterval = null;
+        vibrationStarted = false;
+      }
+      button.textContent = '▶ 播放';
+    });
+  </script>
+
+</body>
+</html>
