@@ -27,13 +27,13 @@
       font-size: 18px;
       border: none;
       border-radius: 8px;
-      background: #007bff;
+      background: #8e44ad; /* Purple button */
       color: white;
       cursor: pointer;
     }
 
     button:hover {
-      background: #0056b3;
+      background: #732d91; /* Darker purple on hover */
     }
 
     video {
@@ -104,15 +104,13 @@
         vibrationInterval = setInterval(() => {
           navigator.vibrate(200);
           step++;
-
-          // After ~5 pulses (10 seconds), increase frequency
           if (step === 5) {
             clearInterval(vibrationInterval);
             vibrationInterval = setInterval(() => {
               navigator.vibrate(200);
-            }, 500); // Increase frequency
+            }, 500); // Faster after initial delay
           }
-        }, 2000); // Start slow: one vibration every 2 seconds
+        }, 2000); // Start slow
       }
     }
 
@@ -125,7 +123,6 @@
       vibrationStarted = false;
     }
 
-    // Start vibration at 37.5s
     video.addEventListener('timeupdate', () => {
       if (!vibrationStarted && video.currentTime >= 37.5) {
         vibrationStarted = true;
@@ -133,13 +130,11 @@
       }
     });
 
-    // Stop vibration when video ends
     video.addEventListener('ended', () => {
       stopVibration();
       button.textContent = '▶ Play';
     });
 
-    // Stop vibration when paused
     video.addEventListener('pause', () => {
       stopVibration();
     });
