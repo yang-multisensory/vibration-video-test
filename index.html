@@ -66,11 +66,10 @@
     let vibrationStarted = false;
     let vibrationInterval = null;
 
-    // ⚙️ Preload a small video segment to ensure stability across browsers
     video.load();
     video.currentTime = 0.1;
 
-    // ⏳ 5-second intro countdown before showing video
+    // Intro countdown (5 seconds)
     let count = 5;
     const bootTimer = setInterval(() => {
       count--;
@@ -86,7 +85,7 @@
       }
     }, 1000);
 
-    // ▶ Play/Pause button logic with vibration control
+    // Play/Pause button with vibration control
     button.addEventListener('click', () => {
       if (video.paused) {
         video.play();
@@ -94,37 +93,55 @@
       } else {
         video.pause();
         button.textContent = '▶ Play';
-        if (navigator.vibrate && vibrationInterval) {
-          clearInterval(vibrationInterval);
-          navigator.vibrate(0);
-          vibrationInterval = null;
-          vibrationStarted = false;
-        }
+        stopVibration();
       }
     });
 
-    // 🎯 Start vibration at 34 seconds
-    video.addEventListener('timeupdate', () => {
-      if (!vibrationStarted && video.currentTime >= 34) {
-        vibrationStarted = true;
-        if (navigator.vibrate) {
-          navigator.vibrate(200); // Initial pulse
-          vibrationInterval = setInterval(() => {
-            navigator.vibrate(200); // Repeat every 500ms
-          }, 500);
-        }
-      }
-    });
+    // Gradual vibration logic
+    function startVibration() {
+      let step = 0;
+      if (navigator.vibrate) {
+        vibrationInterval = setInterval(() => {
+          navigator.vibrate(200);
+          step++;
 
-    // 🛑 Stop vibration when video ends
-    video.addEventListener('ended', () => {
+          // After ~5 pulses (10 seconds), increase frequency
+          if (step === 5) {
+            clearInterval(vibrationInterval);
+            vibrationInterval = setInterval(() => {
+              navigator.vibrate(200);
+            }, 500); // Increase frequency
+          }
+        }, 2000); // Start slow: one vibration every 2 seconds
+      }
+    }
+
+    function stopVibration() {
       if (vibrationInterval) {
         clearInterval(vibrationInterval);
-        navigator.vibrate(0);
         vibrationInterval = null;
-        vibrationStarted = false;
       }
+      navigator.vibrate(0);
+      vibrationStarted = false;
+    }
+
+    // Start vibration at 37.5s
+    video.addEventListener('timeupdate', () => {
+      if (!vibrationStarted && video.currentTime >= 37.5) {
+        vibrationStarted = true;
+        startVibration();
+      }
+    });
+
+    // Stop vibration when video ends
+    video.addEventListener('ended', () => {
+      stopVibration();
       button.textContent = '▶ Play';
+    });
+
+    // Stop vibration when paused
+    video.addEventListener('pause', () => {
+      stopVibration();
     });
   </script>
 
