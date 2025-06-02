@@ -2,23 +2,24 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Video + Vibration</title>
+  <title>Vibration-Enhanced Video Playback</title>
   <style>
-    /* === 这里粘贴你的 CSS === */
     body {
-      margin: 0;
-      padding: 20px;
       font-family: sans-serif;
-      background: #f9f9f9;
       text-align: center;
+      padding: 20px;
+      background: #f9f9f9;
     }
 
-    video {
-      width: 100%;
-      max-width: 640px;
-      border-radius: 12px;
-      margin-bottom: 20px;
+    progress {
+      width: 80%;
+      height: 20px;
+      margin: 10px auto;
+    }
+
+    #bootText {
+      font-size: 16px;
+      color: #555;
     }
 
     button {
@@ -34,35 +35,65 @@
     button:hover {
       background: #0056b3;
     }
+
+    video {
+      width: 90%;
+      max-width: 720px;
+      margin-top: 20px;
+    }
   </style>
 </head>
 <body>
 
-  <!-- === 这里粘贴你的 HTML 视频 + 按钮 === -->
-  <video id="myVideo" preload="metadata" playsinline>
-    <source src="https://yang-multisensory.github.io/vibration-video-test/Chocolate%20Factory%20480.mp4" type="video/mp4">
-    Your browser does not support video.
+  <video id="myVideo" preload="metadata" playsinline style="display: none;">
+    <source src="https://yang-multisensory.github.io/vibration-video-test/Chocolate%20Factory%20240.mp4" type="video/mp4">
+    Your browser does not support this video format.
   </video>
 
   <br>
-  <button id="playBtn">▶ 播放</button>
+  <progress id="bootProgress" value="0" max="5"></progress>
+  <p id="bootText">⌛ Loading… Please wait <span id="bootCountdown">5</span> seconds</p>
+  <br>
+  <button id="playBtn" style="display: none;">▶ Play</button>
 
   <script>
-    // === 这里粘贴你的 JS ===
     const video = document.getElementById('myVideo');
+    const progress = document.getElementById('bootProgress');
+    const bootText = document.getElementById('bootText');
+    const bootCountdown = document.getElementById('bootCountdown');
     const button = document.getElementById('playBtn');
 
     let vibrationStarted = false;
     let vibrationInterval = null;
 
+    // ⚙️ Preload a small video segment to ensure stability across browsers
+    video.load();
+    video.currentTime = 0.1;
+
+    // ⏳ 5-second intro countdown before showing video
+    let count = 5;
+    const bootTimer = setInterval(() => {
+      count--;
+      bootCountdown.textContent = count;
+      progress.value = 5 - count;
+
+      if (count <= 0) {
+        clearInterval(bootTimer);
+        bootText.style.display = 'none';
+        progress.style.display = 'none';
+        video.style.display = 'block';
+        button.style.display = 'inline-block';
+      }
+    }, 1000);
+
+    // ▶ Play/Pause button logic with vibration control
     button.addEventListener('click', () => {
       if (video.paused) {
         video.play();
-        button.textContent = '⏸ 暂停';
+        button.textContent = '⏸ Pause';
       } else {
         video.pause();
-        button.textContent = '▶ 播放';
-
+        button.textContent = '▶ Play';
         if (navigator.vibrate && vibrationInterval) {
           clearInterval(vibrationInterval);
           navigator.vibrate(0);
@@ -72,19 +103,20 @@
       }
     });
 
+    // 🎯 Start vibration at 34 seconds
     video.addEventListener('timeupdate', () => {
       if (!vibrationStarted && video.currentTime >= 34) {
         vibrationStarted = true;
-
         if (navigator.vibrate) {
-          navigator.vibrate(200);
+          navigator.vibrate(200); // Initial pulse
           vibrationInterval = setInterval(() => {
-            navigator.vibrate(200);
+            navigator.vibrate(200); // Repeat every 500ms
           }, 500);
         }
       }
     });
 
+    // 🛑 Stop vibration when video ends
     video.addEventListener('ended', () => {
       if (vibrationInterval) {
         clearInterval(vibrationInterval);
@@ -92,7 +124,7 @@
         vibrationInterval = null;
         vibrationStarted = false;
       }
-      button.textContent = '▶ 播放';
+      button.textContent = '▶ Play';
     });
   </script>
 
