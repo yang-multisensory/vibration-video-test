@@ -1,160 +1,165 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Vibration-Enhanced Video Playback</title>
+  <meta charset="UTF-8" />
+  <title>Vibration‑Enhanced Video Playback</title>
   <style>
+    /* =================  BASIC LAYOUT ================ */
     body {
       font-family: sans-serif;
       text-align: center;
       padding: 20px;
       background: #f9f9f9;
     }
-
-    progress {
-      width: 80%;
-      height: 20px;
-      margin: 10px auto;
-    }
-
-    #bootText {
-      font-size: 16px;
-      color: #555;
-    }
-
-    button {
-      padding: 12px 24px;
-      font-size: 18px;
-      border: none;
-      border-radius: 8px;
-      background: #007bff; /* Blue button */
-      color: white;
-      cursor: pointer;
-    }
-
-    button:hover {
-      background: #0056b3; /* Darker blue */
-    }
-
     video {
       width: 90%;
       max-width: 720px;
       margin-top: 20px;
     }
+    progress {
+      width: 80%;
+      height: 20px;
+      margin: 10px auto;
+    }
+    #bootText { color: #555; font-size: 16px; }
+    button {
+      padding: 12px 24px;
+      font-size: 18px;
+      border: none;
+      border-radius: 8px;
+      background: #007bff;
+      color: #fff;
+      cursor: pointer;
+    }
+    button:hover { background: #0056b3; }
   </style>
 </head>
 <body>
-
-  <video id="myVideo" preload="metadata" playsinline style="display: none;">
-    <source src="https://yang-multisensory.github.io/vibration-video-test/Chocolate%20Factory%20240.mp4" type="video/mp4">
+  <!-- ❶ VIDEO SOURCE -->
+  <video id="myVideo" preload="metadata" playsinline style="display:none;">
+    <source src="https://yang-multisensory.github.io/vibration-video-test/Chocolate%20Factory%20240.mp4" type="video/mp4" />
     Your browser does not support this video format.
   </video>
 
-  <br>
+  <!-- ❷ COUNTDOWN / CONTROLS -->
+  <br />
   <progress id="bootProgress" value="0" max="5"></progress>
   <p id="bootText">⌛ Loading… Please wait <span id="bootCountdown">5</span> seconds</p>
-  <br>
-  <button id="playBtn" style="display: none;">▶ Play</button>
+  <br />
+  <button id="playBtn" style="display:none;">▶ Play</button>
+  <button id="backBtn" style="display:none; margin-left:12px;">⇦ 返回问卷</button>
 
   <script>
-    const video = document.getElementById('myVideo');
-    const progress = document.getElementById('bootProgress');
-    const bootText = document.getElementById('bootText');
-    const bootCountdown = document.getElementById('bootCountdown');
-    const button = document.getElementById('playBtn');
+  /* =============================================================
+     1. 读取 Qualtrics URL 参数
+     ------------------------------------------------------------- */
+  const params     = new URLSearchParams(location.search);
+  const vpid       = params.get('vpid');       // 每个受试者唯一的 ResponseID
+  const sidParam   = params.get('sid');        // 可选：从 Qualtrics 链接直接带过来的 SurveyID
 
-    let vibrationStarted = false;
-    let vibrationInterval = null;
-    let vibrationStep = 0;
-    let vibrationActive = false;
+  /*
+     ▶ 选项 A（推荐）：
+        — 在 Qualtrics 跳转链接里同时带上 sid，例如：
+          https://…/vib.html?vpid=${e://Field/ResponseID}&sid=${SurveyID}
+        — 下面代码就会用 sidParam。当将来 SurveyID 变更或复制问卷，也无需改外站代码。
 
-    video.load();
-    video.currentTime = 0.1;
+     ▶ 选项 B：如果没带 sidParam，就用 fallback 固定值。
+  */
+  const surveyId   = sidParam || 'SV_0wiqiprV28o9d4y';   // ← 把 XXXXXXXXXXXX 改成你的默认 SurveyID
+  const qualDomain = 'oxfordxpsy.pdx1.qualtrics.com';         // ← 你的 Qualtrics 子域名（通常不变）
+  const qualReturn = `https://${qualDomain}/jfe/form/${surveyId}` +
+                     `?Q_R=${encodeURIComponent(vpid)}&Q_TICKET=STI-HP`;
+  /* ============================================================= */
 
-    // Intro countdown (5 seconds)
-    let count = 5;
-    const bootTimer = setInterval(() => {
-      count--;
-      bootCountdown.textContent = count;
-      progress.value = 5 - count;
+  /* === 2. 视频 + 震动逻辑 ======================================== */
+  const video         = document.getElementById('myVideo');
+  const progressBar   = document.getElementById('bootProgress');
+  const bootText      = document.getElementById('bootText');
+  const bootCountdown = document.getElementById('bootCountdown');
+  const playBtn       = document.getElementById('playBtn');
+  const backBtn       = document.getElementById('backBtn');
 
-      if (count <= 0) {
-        clearInterval(bootTimer);
-        bootText.style.display = 'none';
-        progress.style.display = 'none';
-        video.style.display = 'block';
-        button.style.display = 'inline-block';
-      }
-    }, 1000);
+  let vibrationStarted  = false;
+  let vibrationInterval = null;
+  let vibrationStep     = 0;
+  let vibrationActive   = false;
 
-    // Play/Pause button logic
-    button.addEventListener('click', () => {
-      if (video.paused) {
-        video.play();
-        button.textContent = '⏸ Pause';
-        if (vibrationActive) resumeVibration(); // resume if needed
-      } else {
-        video.pause();
-        button.textContent = '▶ Play';
-        stopVibration(); // only pause, don't reset step
-      }
-    });
+  video.load();
+  video.currentTime = 0.1;  // 预取一帧防止黑屏
 
-    // Start or resume vibration depending on step
-    function resumeVibration() {
-      if (navigator.vibrate) {
-        const interval = (vibrationStep < 5) ? 2000 : 500;
-        vibrationInterval = setInterval(() => {
-          navigator.vibrate(200);
-          vibrationStep++;
-          if (vibrationStep === 5 && interval !== 500) {
-            clearInterval(vibrationInterval);
-            vibrationInterval = setInterval(() => {
-              navigator.vibrate(200);
-            }, 500); // upgrade to higher freq
-          }
-        }, interval);
-      }
+  /* 2.1 五秒倒计时 */
+  let count = 5;
+  const bootTimer = setInterval(() => {
+    bootCountdown.textContent = --count;
+    progressBar.value = 5 - count;
+    if (count <= 0) {
+      clearInterval(bootTimer);
+      bootText.style.display   = 'none';
+      progressBar.style.display = 'none';
+      video.style.display      = 'block';
+      playBtn.style.display    = 'inline-block';
     }
+  }, 1_000);
 
-    // Start vibration for the first time
-    function startVibration() {
-      vibrationStarted = true;
-      vibrationActive = true;
-      vibrationStep = 0;
-      resumeVibration();
+  /* 2.2 播放 / 暂停 */
+  playBtn.addEventListener('click', () => {
+    if (video.paused) {
+      video.play();
+      playBtn.textContent = '⏸ Pause';
+      if (vibrationActive) resumeVibration();
+    } else {
+      video.pause();
+      playBtn.textContent = '▶ Play';
+      stopVibration();
     }
+  });
 
-    // Stop vibration without resetting step
-    function stopVibration() {
-      if (vibrationInterval) {
+  /* 2.3 震动算法 */
+  function resumeVibration() {
+    if (!navigator.vibrate) return;
+    const baseInterval = (vibrationStep < 5) ? 2_000 : 500;
+    vibrationInterval = setInterval(() => {
+      navigator.vibrate(200);
+      if (++vibrationStep === 5 && baseInterval !== 500) {
         clearInterval(vibrationInterval);
-        vibrationInterval = null;
+        vibrationInterval = setInterval(() => navigator.vibrate(200), 500);
       }
-      navigator.vibrate(0);
-      vibrationActive = false;
+    }, baseInterval);
+  }
+  function startVibration() {
+    vibrationStarted = true;
+    vibrationActive  = true;
+    vibrationStep    = 0;
+    resumeVibration();
+  }
+  function stopVibration() {
+    if (vibrationInterval) clearInterval(vibrationInterval);
+    navigator.vibrate(0);
+    vibrationActive = false;
+  }
+
+  video.addEventListener('timeupdate', () => {
+    if (!vibrationStarted && video.currentTime >= 37.5) startVibration();
+  });
+
+  /* 2.4 视频结束：跳回 Qualtrics */
+  video.addEventListener('ended', () => {
+    stopVibration();
+    vibrationStarted = false;
+    vibrationStep    = 0;
+    playBtn.textContent = '▶ Play';
+
+    if (vpid) {
+      window.location.href = qualReturn;         // 自动回问卷
+    } else {
+      // 若没有 ResponseID，提供手动按钮
+      backBtn.style.display = 'inline-block';
+      backBtn.onclick = () => (window.location.href = qualReturn);
+      alert('视频播放完毕，请点击“返回问卷”。');
     }
+  });
 
-    // Trigger vibration at 37.5s
-    video.addEventListener('timeupdate', () => {
-      if (!vibrationStarted && video.currentTime >= 37.5) {
-        startVibration();
-      }
-    });
-
-    // On video end
-    video.addEventListener('ended', () => {
-      stopVibration();
-      vibrationStarted = false; // reset for replay
-      vibrationStep = 0;
-      button.textContent = '▶ Play';
-    });
-
-    // Pause also stops vibration
-    video.addEventListener('pause', () => {
-      stopVibration();
-    });
+  video.addEventListener('pause', stopVibration);
   </script>
-
 </body>
 </html>
