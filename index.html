@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <title>Vibration‑Enhanced Video Playback</title>
   <style>
-    /* =================  BASIC LAYOUT ================ */
     body {
       font-family: sans-serif;
       text-align: center;
@@ -35,13 +34,11 @@
   </style>
 </head>
 <body>
-  <!-- ❶ VIDEO SOURCE -->
   <video id="myVideo" preload="metadata" playsinline style="display:none;">
     <source src="https://yang-multisensory.github.io/vibration-video-test/Chocolate%20Factory%20240.mp4" type="video/mp4" />
     Your browser does not support this video format.
   </video>
 
-  <!-- ❷ COUNTDOWN / CONTROLS -->
   <br />
   <progress id="bootProgress" value="0" max="5"></progress>
   <p id="bootText">⌛ Loading… Please wait <span id="bootCountdown">5</span> seconds</p>
@@ -50,28 +47,15 @@
   <button id="backBtn" style="display:none; margin-left:12px;">⇦ 返回问卷</button>
 
   <script>
-  /* =============================================================
-     1. 读取 Qualtrics URL 参数
-     ------------------------------------------------------------- */
   const params     = new URLSearchParams(location.search);
-  const vpid       = params.get('vpid');       // 每个受试者唯一的 ResponseID
-  const sidParam   = params.get('sid');        // 可选：从 Qualtrics 链接直接带过来的 SurveyID
+  const vpid       = params.get('vpid');
+  const sidParam   = params.get('sid');
 
-  /*
-     ▶ 选项 A（推荐）：
-        — 在 Qualtrics 跳转链接里同时带上 sid，例如：
-          https://…/vib.html?vpid=${e://Field/ResponseID}&sid=${SurveyID}
-        — 下面代码就会用 sidParam。当将来 SurveyID 变更或复制问卷，也无需改外站代码。
-
-     ▶ 选项 B：如果没带 sidParam，就用 fallback 固定值。
-  */
-  const surveyId   = sidParam || 'SV_0wiqiprV28o9d4y';   // ← 把 XXXXXXXXXXXX 改成你的默认 SurveyID
-  const qualDomain = 'oxfordxpsy.pdx1.qualtrics.com';         // ← 你的 Qualtrics 子域名（通常不变）
+  const surveyId   = sidParam || 'SV_XXXXXXXXXXXX';
+  const qualDomain = 'yourorg.qualtrics.com';
   const qualReturn = `https://${qualDomain}/jfe/form/${surveyId}` +
                      `?Q_R=${encodeURIComponent(vpid)}&Q_TICKET=STI-HP`;
-  /* ============================================================= */
 
-  /* === 2. 视频 + 震动逻辑 ======================================== */
   const video         = document.getElementById('myVideo');
   const progressBar   = document.getElementById('bootProgress');
   const bootText      = document.getElementById('bootText');
@@ -85,9 +69,8 @@
   let vibrationActive   = false;
 
   video.load();
-  video.currentTime = 0.1;  // 预取一帧防止黑屏
+  video.currentTime = 0.1;
 
-  /* 2.1 五秒倒计时 */
   let count = 5;
   const bootTimer = setInterval(() => {
     bootCountdown.textContent = --count;
@@ -98,10 +81,12 @@
       progressBar.style.display = 'none';
       video.style.display      = 'block';
       playBtn.style.display    = 'inline-block';
+      backBtn.style.display    = 'inline-block';
     }
   }, 1_000);
 
-  /* 2.2 播放 / 暂停 */
+  backBtn.onclick = () => (window.location.href = qualReturn);
+
   playBtn.addEventListener('click', () => {
     if (video.paused) {
       video.play();
@@ -114,7 +99,6 @@
     }
   });
 
-  /* 2.3 震动算法 */
   function resumeVibration() {
     if (!navigator.vibrate) return;
     const baseInterval = (vibrationStep < 5) ? 2_000 : 500;
@@ -142,21 +126,11 @@
     if (!vibrationStarted && video.currentTime >= 37.5) startVibration();
   });
 
-  /* 2.4 视频结束：跳回 Qualtrics */
   video.addEventListener('ended', () => {
     stopVibration();
     vibrationStarted = false;
     vibrationStep    = 0;
     playBtn.textContent = '▶ Play';
-
-    if (vpid) {
-      window.location.href = qualReturn;         // 自动回问卷
-    } else {
-      // 若没有 ResponseID，提供手动按钮
-      backBtn.style.display = 'inline-block';
-      backBtn.onclick = () => (window.location.href = qualReturn);
-      alert('视频播放完毕，请点击“返回问卷”。');
-    }
   });
 
   video.addEventListener('pause', stopVibration);
