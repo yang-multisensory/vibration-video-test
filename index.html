@@ -2,138 +2,303 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Vibration‑Enhanced Video Playback</title>
+  <title>Vibration-Enhanced Video</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <style>
-    body {
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #000;
+      color: white;
       font-family: sans-serif;
+      height: 100%;
+      width: 100%;
       text-align: center;
+    }
+
+    #rotatePrompt {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background: black;
+      color: white;
       padding: 20px;
-      background: #f9f9f9;
     }
-    video {
-      width: 90%;
-      max-width: 720px;
-      margin-top: 20px;
+
+    #rotatePrompt p {
+      font-size: 1.2rem;
+      margin-bottom: 20px;
     }
-    progress {
-      width: 80%;
-      height: 20px;
-      margin: 10px auto;
-    }
-    #bootText { color: #555; font-size: 16px; }
-    button {
-      padding: 12px 24px;
-      font-size: 18px;
+
+    #confirmRotateBtn {
+      padding: 10px 20px;
+      font-size: 1rem;
+      background: #007bff;
+      color: white;
       border: none;
       border-radius: 8px;
-      background: #007bff;
-      color: #fff;
+    }
+
+    #bootOverlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.85);
+      color: white;
+      font-size: 1.2rem;
+      z-index: 99;
+      text-align: center;
+      padding: 20px;
+    }
+
+    #bootMessage {
+      line-height: 1.6;
+    }
+
+    #videoContainer {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      background: black;
+    }
+
+    video {
+      width: 100vw;
+      height: 100vh;
+      object-fit: contain;
+      background: black;
+    }
+
+    #fullscreenToggleBtn {
+      position: absolute;
+      top: 4vh;
+      left: 4vw;
+      font-size: 1.4rem;
+      background: rgba(0, 0, 0, 0.6);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 12px;
+      z-index: 10;
       cursor: pointer;
     }
-    button:hover { background: #0056b3; }
+
+    #playBtn {
+      position: absolute;
+      bottom: 5vh;
+      left: 15vw;
+      padding: 10px 16px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.5);
+      color: white;
+      cursor: pointer;
+      z-index: 10;
+    }
+
+    #endMessage {
+      position: absolute;
+      bottom: 15vh;
+      left: 50%;
+      transform: translateX(-50%);
+      text-align: center;
+      z-index: 10;
+    }
+
+    #endMessage p {
+      margin-bottom: 10px;
+      font-size: 1rem;
+    }
+
+    #finalBackBtn {
+      padding: 10px 20px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 8px;
+      background: #28a745;
+      color: white;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
-  <video id="myVideo" preload="metadata" playsinline style="display:none;">
-    <source src="https://yang-multisensory.github.io/vibration-video-test/Chocolate%20Factory%20240.mp4" type="video/mp4" />
-    Your browser does not support this video format.
-  </video>
 
-  <br />
-  <progress id="bootProgress" value="0" max="5"></progress>
-  <p id="bootText">⌛ Loading… Please wait <span id="bootCountdown">5</span> seconds</p>
-  <br />
-  <button id="playBtn" style="display:none;">▶ Play</button>
-  <button id="backBtn" style="display:none; margin-left:12px;">⇦ 返回问卷</button>
+  <!-- 竖屏提示 -->
+  <div id="rotatePrompt">
+    <p>Please rotate your phone to landscape mode.</p>
+    <button id="confirmRotateBtn">I have rotated</button>
+  </div>
+
+  <!-- 加载倒计时提示 -->
+  <div id="bootOverlay" style="display: none;">
+    <p id="bootMessage">⌛ Loading video...<br>Starting in <span id="bootCountdown">5</span> seconds</p>
+  </div>
+
+  <!-- 视频区域 -->
+  <div id="videoContainer" style="display: none;">
+    <video id="myVideo" preload="metadata" playsinline>
+      <source src="https://yang-multisensory.github.io/vibration-video-test/Chocolate%20Factory%20240.mp4" type="video/mp4" />
+      Your browser does not support this video format.
+    </video>
+
+    <button id="fullscreenToggleBtn" title="Toggle Fullscreen">⤢</button>
+    <button id="playBtn" style="display:none;">▶</button>
+
+    <div id="endMessage" style="display:none;">
+      <p>🎉 Video has ended. Please return to the survey.</p>
+      <button id="finalBackBtn">⇦ Back to Survey</button>
+    </div>
+  </div>
 
   <script>
-  const params     = new URLSearchParams(location.search);
-  const vpid       = params.get('vpid');
-  const sidParam   = params.get('sid');
+    const params     = new URLSearchParams(location.search);
+    const vpid       = params.get('vpid');
+    const sidParam   = params.get('sid');
+    const surveyId   = sidParam || 'SV_0wiqiprV28o9d4y';
+    const qualDomain = 'oxfordxpsy.pdx1.qualtrics.com';
+    const qualReturn = `https://${qualDomain}/jfe/form/${surveyId}?Q_R=${encodeURIComponent(vpid)}&Q_TICKET=STI-HP`;
 
-  const surveyId   = sidParam || 'SV_0wiqiprV28o9d4y';
-  const qualDomain = 'oxfordxpsy.pdx1.qualtrics.com';
-  const qualReturn = `https://${qualDomain}/jfe/form/${surveyId}` +
-                     `?Q_R=${encodeURIComponent(vpid)}&Q_TICKET=STI-HP`;
+    const video            = document.getElementById('myVideo');
+    const bootOverlay      = document.getElementById('bootOverlay');
+    const bootCountdown    = document.getElementById('bootCountdown');
+    const rotatePrompt     = document.getElementById('rotatePrompt');
+    const confirmRotateBtn = document.getElementById('confirmRotateBtn');
+    const videoContainer   = document.getElementById('videoContainer');
+    const playBtn          = document.getElementById('playBtn');
+    const finalBackBtn     = document.getElementById('finalBackBtn');
+    const endMessage       = document.getElementById('endMessage');
+    const fullscreenBtn    = document.getElementById('fullscreenToggleBtn');
 
-  const video         = document.getElementById('myVideo');
-  const progressBar   = document.getElementById('bootProgress');
-  const bootText      = document.getElementById('bootText');
-  const bootCountdown = document.getElementById('bootCountdown');
-  const playBtn       = document.getElementById('playBtn');
-  const backBtn       = document.getElementById('backBtn');
+    let vibrationStarted  = false;
+    let vibrationActive   = false;
+    let vibrationTimeout  = null;
 
-  let vibrationStarted  = false;
-  let vibrationInterval = null;
-  let vibrationStep     = 0;
-  let vibrationActive   = false;
+    confirmRotateBtn.addEventListener('click', () => {
+      rotatePrompt.style.display = 'none';
+      bootOverlay.style.display = 'flex';
+      videoContainer.style.display = 'block';
 
-  video.load();
-  video.currentTime = 0.1;
+      let count = 5;
+      video.load();
+      video.currentTime = 0.1;
 
-  let count = 5;
-  const bootTimer = setInterval(() => {
-    bootCountdown.textContent = --count;
-    progressBar.value = 5 - count;
-    if (count <= 0) {
-      clearInterval(bootTimer);
-      bootText.style.display   = 'none';
-      progressBar.style.display = 'none';
-      video.style.display      = 'block';
-      playBtn.style.display    = 'inline-block';
-      backBtn.style.display    = 'inline-block';
-    }
-  }, 1_000);
+      const bootTimer = setInterval(() => {
+        bootCountdown.textContent = count;
+        count--;
+        if (count < 0) {
+          clearInterval(bootTimer);
+          bootOverlay.style.display = 'none';
+          playBtn.style.display = 'inline-block';
+        }
+      }, 1000);
+    });
 
-  backBtn.onclick = () => (window.location.href = qualReturn);
-
-  playBtn.addEventListener('click', () => {
-    if (video.paused) {
-      video.play();
-      playBtn.textContent = '⏸ Pause';
-      if (vibrationActive) resumeVibration();
-    } else {
-      video.pause();
-      playBtn.textContent = '▶ Play';
-      stopVibration();
-    }
-  });
-
-  function resumeVibration() {
-    if (!navigator.vibrate) return;
-    const baseInterval = (vibrationStep < 5) ? 2_000 : 500;
-    vibrationInterval = setInterval(() => {
-      navigator.vibrate(200);
-      if (++vibrationStep === 5 && baseInterval !== 500) {
-        clearInterval(vibrationInterval);
-        vibrationInterval = setInterval(() => navigator.vibrate(200), 500);
+    playBtn.addEventListener('click', () => {
+      requestFullscreen();
+      if (video.paused) {
+        video.play();
+        playBtn.textContent = '⏸';
+        if (vibrationStarted && vibrationActive) resumeVibration();
+      } else {
+        video.pause();
+        playBtn.textContent = '▶';
+        stopVibration();
       }
-    }, baseInterval);
-  }
-  function startVibration() {
-    vibrationStarted = true;
-    vibrationActive  = true;
-    vibrationStep    = 0;
-    resumeVibration();
-  }
-  function stopVibration() {
-    if (vibrationInterval) clearInterval(vibrationInterval);
-    navigator.vibrate(0);
-    vibrationActive = false;
-  }
+    });
 
-  video.addEventListener('timeupdate', () => {
-    if (!vibrationStarted && video.currentTime >= 37.5) startVibration();
-  });
+    fullscreenBtn.addEventListener('click', () => {
+      if (isInFullscreen()) {
+        exitFullscreen();
+      } else {
+        requestFullscreen();
+      }
+    });
 
-  video.addEventListener('ended', () => {
-    stopVibration();
-    vibrationStarted = false;
-    vibrationStep    = 0;
-    playBtn.textContent = '▶ Play';
-  });
+    function updateFullscreenIcon() {
+      fullscreenBtn.textContent = isInFullscreen() ? '⤢' : '⤡';
+    }
 
-  video.addEventListener('pause', stopVibration);
+    function isInFullscreen() {
+      return document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
+    }
+
+    document.addEventListener('fullscreenchange', updateFullscreenIcon);
+    document.addEventListener('webkitfullscreenchange', updateFullscreenIcon);
+    document.addEventListener('msfullscreenchange', updateFullscreenIcon);
+
+    function requestFullscreen() {
+      const el = document.documentElement;
+      if (el.requestFullscreen) el.requestFullscreen();
+      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+      else if (el.msRequestFullscreen) el.msRequestFullscreen();
+    }
+
+    function exitFullscreen() {
+      if (document.exitFullscreen) document.exitFullscreen();
+      else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+      else if (document.msExitFullscreen) document.msExitFullscreen();
+    }
+
+    function computeFrequency(t) {
+      const tSinceStart = Math.max(0, t - 37.5);
+      const minFreqHz = 0.3;
+      const maxFreqHz = 5;
+      const rampDuration = 120;
+      const freq = Math.min(maxFreqHz, minFreqHz + (maxFreqHz - minFreqHz) * (tSinceStart / rampDuration));
+      return 1000 / freq;
+    }
+
+    function resumeVibration() {
+      if (!navigator.vibrate) return;
+      stopVibration();
+      const tick = () => {
+        const t = video.currentTime;
+        if (t < 37.5 || video.paused || video.ended || !vibrationActive) return;
+        const interval = computeFrequency(t);
+        navigator.vibrate(200);
+        vibrationTimeout = setTimeout(tick, interval);
+      };
+      tick();
+    }
+
+    function startVibration() {
+      vibrationStarted = true;
+      vibrationActive  = true;
+      resumeVibration();
+    }
+
+    function stopVibration() {
+      clearTimeout(vibrationTimeout);
+      navigator.vibrate(0);
+    }
+
+    video.addEventListener('timeupdate', () => {
+      if (!vibrationStarted && video.currentTime >= 37.5) {
+        startVibration();
+      }
+    });
+
+    video.addEventListener('ended', () => {
+      stopVibration();
+      vibrationStarted = false;
+      vibrationActive = false;
+      playBtn.style.display = 'none';
+      endMessage.style.display = 'block';
+      exitFullscreen();
+    });
+
+    finalBackBtn.onclick = () => {
+      window.location.href = qualReturn;
+    };
   </script>
 </body>
 </html>
