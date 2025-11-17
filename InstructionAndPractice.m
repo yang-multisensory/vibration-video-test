@@ -19,6 +19,13 @@ function InstructionAndPractice()
     clearvars;
     sca; % Screen Close All
 
+    % 关闭所有音频设备
+    try
+        PsychPortAudio('Close');
+    catch
+        % 没有已打开的音频设备
+    end
+
     % 添加Psychtoolbox路径（如果需要）
     try
         PsychtoolboxVersion;
@@ -124,6 +131,14 @@ function InstructionAndPractice()
 
     % 初始化音频驱动
     InitializePsychSound(1);
+
+    % 关闭所有可能已打开的音频设备
+    try
+        PsychPortAudio('Close');
+        fprintf('✓ 已关闭之前的音频设备\n');
+    catch
+        % 没有已打开的设备，继续
+    end
 
     % 打开音频设备
     pahandle = PsychPortAudio('Open', audioDeviceIndex, 1, 1, fs, nOutputChannels);
