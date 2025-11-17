@@ -57,6 +57,9 @@ function InstructionAndPractice()
     questionFontSize = 72;
     answerFontSize = 56;
 
+    % 获取当前目录（用于绝对路径）
+    currentDir = pwd;
+
     %% ===== 检查文件 =====
     fprintf('\n===== 检查实验文件 =====\n');
 
@@ -138,7 +141,7 @@ function InstructionAndPractice()
     videoTextures = cell(3, 1);
 
     for clipIdx = 1:3
-        videoFile = sprintf('video_%d.mp4', clipIdx);
+        videoFile = fullfile(currentDir, sprintf('video_%d.mp4', clipIdx));
         fprintf('加载视频 %d/%d: %s\n', clipIdx, 3, videoFile);
 
         % 打开视频
@@ -249,9 +252,9 @@ function InstructionAndPractice()
         fprintf('\n--- 练习 %d/3 ---\n', practiceIdx);
         fprintf('视频: %d, Offset: %d ms\n', clipIdx, offset_ms);
 
-        % 加载音频和触觉
-        audioFile = sprintf('audio_%d.wav', clipIdx);
-        hapticFile = sprintf('haptic_%d.wav', clipIdx);
+        % 加载音频和触觉（使用绝对路径）
+        audioFile = fullfile(currentDir, sprintf('audio_%d.wav', clipIdx));
+        hapticFile = fullfile(currentDir, sprintf('haptic_%d.wav', clipIdx));
 
         [A, ~] = audioread(audioFile);
         [Hm, ~] = audioread(hapticFile);
